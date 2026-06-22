@@ -634,20 +634,37 @@ actions:
     #!/bin/sh
     set -eux
 
-    TARGET="x86_64"
-    [ "$(uname -m)" = "aarch64" ] && TARGET="arm64"
+    ARCH="$(uname -m)"
 
+    if [ "${ARCH}" = "ppc64le" ]; then
+      # PowerPC uses the IEEE 1275 boot interface
+      update-grub
+      grub-install --target=powerpc-ieee1275 --no-nvram
+      update-grub
+      sed -i "s#root=[^ ]*#root=${DISTROBUILDER_ROOT_UUID}#g" /boot/grub/grub.cfg
 
-    update-grub
+    elif [ "${ARCH}" = "s390x" ]; then
+      # IBM Z / LinuxONE uses the zipl bootloader instead of GRUB EFI
+      update-grub
+      zipl -V
+      sed -i "s#root=[^ ]*#root=${DISTROBUILDER_ROOT_UUID}#g" /boot/grub/grub.cfg
 
-    # This will create EFI/BOOT
-    grub-install --uefi-secure-boot --target="${TARGET}-efi" --no-nvram --removable
+    else
+      # Standard x86_64 and ARM64 EFI logic
+      TARGET="x86_64"
+      [ "${ARCH}" = "aarch64" ] && TARGET="arm64"
 
-    # This will create EFI/ubuntu
-    grub-install --uefi-secure-boot --target="${TARGET}-efi" --no-nvram
+      update-grub
 
-    update-grub
-    sed -i "s#root=[^ ]*#root=${DISTROBUILDER_ROOT_UUID}#g" /boot/grub/grub.cfg
+      # This will create EFI/BOOT
+      grub-install --uefi-secure-boot --target="${TARGET}-efi" --no-nvram --removable
+
+      # This will create EFI/ubuntu
+      grub-install --uefi-secure-boot --target="${TARGET}-efi" --no-nvram
+
+      update-grub
+      sed -i "s#root=[^ ]*#root=${DISTROBUILDER_ROOT_UUID}#g" /boot/grub/grub.cfg
+    fi
   types:
   - vm
 
