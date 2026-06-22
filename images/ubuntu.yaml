@@ -1,3 +1,24 @@
+partitions:
+  - name: ESP
+    fs: fat32
+    size: 50MiB
+    types:
+    - vm
+    architectures:
+    - x86_64
+    - aarch64
+  - name: prep
+    size: 8MiB
+    types:
+    - vm
+    architectures:
+    - ppc64le
+  - name: root
+    fs: ext4
+    size: 4GiB
+    types:
+    - vm
+  
 image:
   distribution: "ubuntu"
 
@@ -639,7 +660,12 @@ actions:
     if [ "${ARCH}" = "ppc64le" ]; then
       # PowerPC uses the IEEE 1275 boot interface
       update-grub
-      grub-install --target=powerpc-ieee1275 --no-nvram
+      
+      # Dynamically find the virtual disk device (e.g., /dev/loop0) for GRUB installation
+      ROOT_PART=$(df -P / | awk 'NR==2 {print $1}')
+      DISK="/dev/$(lsblk -no pkname "$ROOT_PART")"
+      
+      grub-install --target=powerpc-ieee1275 "${DISK}" --no-nvram
       update-grub
       sed -i "s#root=[^ ]*#root=${DISTROBUILDER_ROOT_UUID}#g" /boot/grub/grub.cfg
 
